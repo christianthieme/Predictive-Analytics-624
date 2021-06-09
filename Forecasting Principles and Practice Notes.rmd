@@ -7,6 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tsibble)
+library(fpp3)
+library(GGally)
 ```
 
 ## Ch 1 Notes
@@ -27,8 +31,257 @@ Quantitative forecasting can be applied when two conditions are satisfied:
 1. numerical information about the past is available;
 2. it is reasonable to assume that some aspects of the past patterns will continue into the future.
 
-```{r}
+## Ch 2 Notes
 
+```{r}
+y <- tsibble(
+  Year = 2015:2019, 
+  Observation = c(123,29,79,52,110), 
+  index = Year
+)
+
+y
 ```
 
-#### 1.5
+
+```{r}
+holidays <- tourism %>%
+  filter(Purpose == "Holiday") %>%
+  group_by(State) %>%
+  summarise(Trips = sum(Trips))
+
+holidays
+```
+```{r}
+autoplot(holidays, Trips) +
+  labs(y = "Overnight trips ('000)",
+       title = "Australian domestic holidays")
+```
+
+```{r fig.height=10, fig.width=6}
+gg_season(holidays, Trips) +
+  labs(y = "Overnight trips ('000)",
+       title = "Australian domestic holidays")
+```
+
+```{r fig.height = 8, fig.width=6}
+holidays %>%
+  gg_subseries(Trips) +
+  labs(y = "Overnight trips ('000)",
+       title = "Australian domestic holidays")
+```
+
+#### 2.6 Scatterplots
+
+```{r}
+vic_elec %>%
+  filter(year(Time) == 2014) %>%
+  autoplot(Demand) +
+  labs(y = "GW",
+       title = "Half-hourly electricity demand: Victoria")
+```
+
+```{r}
+vic_elec %>%
+  filter(year(Time) == 2014) %>%
+  autoplot(Temperature) +
+  labs(
+    y = "Degrees Celsius",
+    title = "Half-hourly temperatures: Melbourne, Australia"
+  )
+```
+```{r}
+vic_elec %>%
+  filter(year(Time) == 2014) %>%
+  ggplot(aes(x = Temperature, y = Demand)) +
+  geom_point() +
+  labs(x = "Temperature (degrees Celsius)",
+       y = "Electricity demand (GW)")
+```
+The correlation coefficient only measures the strength of the linear relationship, and can sometimes be misleading. 
+
+Scatterplot Matrices: 
+
+```{r}
+visitors <- tourism %>%
+  group_by(State) %>%
+  summarise(Trips = sum(Trips))
+visitors %>%
+  ggplot(aes(x = Quarter, y = Trips)) +
+  geom_line() +
+  facet_grid(vars(State), scales = "free_y") +
+  labs(title = "Australian domestic tourism",
+       y= "Overnight trips ('000)")
+```
+
+```{r message=FALSE, warning=FALSE}
+visitors %>%
+  pivot_wider(values_from=Trips, names_from=State) %>%
+  GGally::ggpairs(columns = 2:9)
+```
+
+#### 2.7 - Lag Plots
+
+```{r}
+recent_production <- aus_production %>%
+  filter(year(Quarter) >= 2000)
+recent_production %>%
+  gg_lag(Beer, geom = "point") +
+  labs(x = "lag(Beer, k)")
+```
+Here the colours indicate the quarter of the variable on the vertical axis. The relationship is strongly positive at lags 4 and 8, reflecting the strong seasonality in the data. The negative relationship seen for lags 2 and 6 occurs because peaks (in Q4) are plotted against troughs (in Q2)
+
+#### 2.8 - Autocorrelation
+
+Just as correlation measures the extent of a linear relationship between two variables, autocorrelation measures the linear relationship between lagged values of a time series.
+
+There are several autocorrelation coefficients, corresponding to each panel in the lag plot. 
+
+The autocorrelation coefficients for the beer production data can be computed using the `ACF()` function.
+
+```{r}
+recent_production %>% ACF(Beer, lag_max = 9)
+```
+
+The values in the acf column are  r1-r9 corresponding to the nine scatterplots in Figure 2.19. We usually plot the ACF to see how the correlations change with the lag k. The plot is sometimes known as a correlogram.
+
+```{r}
+recent_production %>%
+  ACF(Beer) %>%
+  autoplot() + labs(title="Australian beer production")
+```
+
+#### 2.9 - White Noise    
+
+```{r}
+y <- tsibble(sample = 1:50, wn = rnorm(50), index = sample)
+
+y %>%
+  ACF(wn) %>%
+  autoplot() + labs(title = "White noise")
+```
+
+## Ch. 3 - Time Series Decomposition
+
+### 3.1 - Transformations and Adjustments
+
+#### Calendar Adjustments
+
+Some of the variation seen in seasonal data may be due to simple calendar effects. In such cases, it is usually much easier to remove the variation before doing any further analysis.
+
+For example, if you are studying the total monthly sales in a retail store, there will be variation between the months simply because of the different numbers of trading days in each month, in addition to the seasonal variation across the year. It is easy to remove this variation by computing average sales per trading day in each month, rather than total sales in the month. Then we effectively remove the calendar variation.
+
+#### Population Adjustments
+
+Any data that are affected by population changes can be adjusted to give per-capita data. That is, consider the data per person (or per thousand people, or per million people) rather than the total. For example, if you are studying the number of hospital beds in a particular region over time, the results are much easier to interpret if you remove the effects of population changes by considering the number of beds per thousand people. Then you can see whether there have been real increases in the number of beds, or whether the increases are due entirely to population increases. It is possible for the total number of beds to increase, but the number of beds per thousand people to decrease. This occurs when the population is increasing faster than the number of hospital beds. For most data that are affected by population changes, it is best to use per-capita data rather than the totals.
+
+```{r}
+global_economy %>%
+  filter(Country == "Australia") %>%
+  autoplot(GDP/Population) +
+  labs(title= "GDP per capita", y = "$US")
+```
+#### Inflation Adjustments
+
+Data which are affected by the value of money are best adjusted before modelling. For example, the average cost of a new house will have increased over the last few decades due to inflation. A $200,000 house this year is not the same as a $200,000 house twenty years ago. For this reason, financial time series are usually adjusted so that all values are stated in dollar values from a particular year. For example, the house price data may be stated in year 2000 dollars.
+
+Price indexes are often constructed by government agencies. For consumer goods, a common price index is the Consumer Price Index (or CPI).
+
+This allows us to compare the growth or decline of industries relative to a common price value. For example, looking at aggregate annual “newspaper and book” retail turnover from aus_retail, and adjusting the data for inflation using CPI from global_economy allows us to understand the changes over time.
+
+```{r}
+print_retail <- aus_retail %>%
+  filter(Industry == "Newspaper and book retailing") %>%
+  group_by(Industry) %>%
+  index_by(Year = year(Month)) %>%
+  summarise(Turnover = sum(Turnover))
+aus_economy <- global_economy %>%
+  filter(Code == "AUS")
+print_retail %>%
+  left_join(aus_economy, by = "Year") %>%
+  mutate(Adjusted_turnover = Turnover / CPI * 100) %>%
+  pivot_longer(c(Turnover, Adjusted_turnover),
+               values_to = "Turnover") %>%
+  mutate(name = factor(name,
+         levels=c("Turnover","Adjusted_turnover"))) %>%
+  ggplot(aes(x = Year, y = Turnover)) +
+  geom_line() +
+  facet_grid(name ~ ., scales = "free_y") +
+  labs(title = "Turnover: Australian print media industry",
+       y = "$AU")
+```
+
+#### Mathematical Transformations
+
+A good value of λ is one which makes the size of the seasonal variation about the same across the whole series, as that makes the forecasting model simpler. In this case, λ=0.10 works quite well, although any value of λ  between 0.0 and 0.2 would give similar results.
+
+The guerrero feature (Guerrero, 1993) can be used to choose a value of lambda for you. In this case it chooses λ=0.12. (See the next chapter for discussion of the features() function.)
+
+```{r}
+library(latex2exp)
+
+lambda <- aus_production %>%
+  features(Gas, features = guerrero) %>%
+  pull(lambda_guerrero)
+aus_production %>%
+  autoplot(box_cox(Gas, lambda)) +
+  labs(y = "",
+       title = latex2exp::TeX(paste0(
+         "Transformed gas production with $\\lambda$ = ",
+         round(lambda,2))))
+```
+### 3.2 Time Series Components
+
+```{r}
+us_retail_employment <- us_employment %>%
+  filter(year(Month) >= 1990, Title == "Retail Trade") %>%
+  select(-Series_ID)
+autoplot(us_retail_employment, Employed) +
+  labs(y = "Persons (thousands)",
+       title = "Total employment in US retail")
+```
+```{r}
+dcmp <- us_retail_employment %>%
+  model(stl = STL(Employed))
+components(dcmp)
+```
+The output above shows the components of an STL decomposition. The original data is shown (as Employed), followed by the estimated components. This output forms a “dable” or decomposition table. The header to the table shows that the Employed series has been decomposed additively.
+
+The trend column (containing the trend-cycle Tt) follows the overall movement of the series, ignoring any seasonality and random fluctuations, as shown in Figure 3.6.
+
+```{r}
+components(dcmp) %>%
+  as_tsibble() %>%
+  autoplot(Employed, colour="gray") +
+  geom_line(aes(y=trend), colour = "#D55E00") +
+  labs(
+    y = "Persons (thousands)",
+    title = "Total employment in US retail"
+  )
+```
+We can plot all of the components in a single figure using autoplot(), as shown in Figure 3.7.
+
+```{r}
+components(dcmp) %>% autoplot()
+```
+The three components are shown separately in the bottom three panels. These components can be added together to reconstruct the data shown in the top panel. Notice that the seasonal component changes over time, so that any two consecutive years have similar patterns, but years far apart may have different seasonal patterns. The remainder component shown in the bottom panel is what is left over when the seasonal and trend-cycle components have been subtracted from the data.
+
+The grey bars to the left of each panel show the relative scales of the components. Each grey bar represents the same length but because the plots are on different scales, the bars vary in size. The large grey bar in the bottom panel shows that the variation in the remainder component is smallest compared to the variation in the data. If we shrank the bottom three panels until their bars became the same size as that in the data panel, then all the panels would be on the same scale.
+
+#### Seasonally adjusted data
+
+If the seasonal component is removed from the original data, the resulting values are the “seasonally adjusted” data. 
+
+```{r}
+components(dcmp) %>%
+  as_tsibble() %>%
+  autoplot(Employed, colour = "gray") +
+  geom_line(aes(y=season_adjust), colour = "#0072B2") +
+  labs(y = "Persons (thousands)",
+       title = "Total employment in US retail")
+```
+If the variation due to seasonality is not of primary interest, the seasonally adjusted series can be useful. For example, monthly unemployment data are usually seasonally adjusted in order to highlight variation due to the underlying state of the economy rather than the seasonal variation. An increase in unemployment due to school leavers seeking work is seasonal variation, while an increase in unemployment due to an economic recession is non-seasonal. Most economic analysts who study unemployment data are more interested in the non-seasonal variation. Consequently, employment data (and many other economic series) are usually seasonally adjusted.
+
+Seasonally adjusted series contain the remainder component as well as the trend-cycle. Therefore, they are not “smooth,” and “downturns” or “upturns” can be misleading. If the purpose is to look for turning points in a series, and interpret any changes in direction, then it is better to use the trend-cycle component rather than the seasonally adjusted data.
+
+### 3.3 Moving Averages
