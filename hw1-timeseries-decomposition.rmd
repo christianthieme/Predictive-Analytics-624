@@ -1,0 +1,98 @@
+---
+title: 'HW1: Forecasting: Principles and Practices'
+author: "Christian Thieme"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tsibble)
+library(fpp2)
+```
+
+# Homework 1: 
+
+#### 2.1
+
+Use the help function to explore what the series `gold`, `woolyrnq` and `gas` represent.
+
+```{r}
+?gold
+?woolyrnq
+?gas
+```
+
+* Use `autoplot()` to plot each of these in seperate plots. 
+
+```{r}
+autoplot(gold)
+autoplot(woolyrnq)
+autoplot(gas)
+```
+* What is the frequency of each series?  
+
+Gold series: 
+
+```{r}
+frequency(gold)
+```
+Woolyrnq series: 
+
+```{r}
+frequency(woolyrnq)
+```
+Gas series: 
+
+```{r}
+frequency(gas)
+```
+
+* Use `which.max()` to spot the outlier in the `gold` series. Which observation is it? 
+
+```{r}
+which.max(gold)
+```
+Observation 770 is the outlier. It's value is: 
+
+```{r}
+gold[which.max(gold)]
+```
+#### 2.3
+
+Download some monthly Australian retail data from [the book website](https://otexts.com/fpp2/extrafiles/retail.xlsx). These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.
+
+* You can read the data into R with the following script: 
+
+```{r}
+retaildata <- readxl::read_excel("retail.xlsx", skip=1)
+```
+
+* Select one of the time series as follows (but replace the column name with your own chosen column):
+
+```{r}
+myts <- ts(retaildata[,"A3349335T"],
+  frequency=12, start=c(1982,4))
+```
+
+* Explore your chosen retail time series using the following functions:
+
+```{r}
+autoplot(myts)
+```
+It appears that the data trends upward and that there is a seasonal component to the data as well. There does not appear to be cyclicity.
+
+```{r}
+ggseasonplot(myts)
+```
+There is a seasonal nature to this data. We can see that sales tend to increase substantially in December and then decrease again in January. It also appears that sales increases every other month and then decreases slightly the following month. 
+
+```{r}
+ggsubseriesplot(myts)
+```
+```{r}
+
+```
+
