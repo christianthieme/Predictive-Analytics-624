@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(tsibble)
 library(fpp2)
+library(fpp3)
+library(fabletools)
 ```
 
 # Homework 1: 
@@ -87,12 +89,86 @@ It appears that the data trends upward and that there is a seasonal component to
 ```{r}
 ggseasonplot(myts)
 ```
-There is a seasonal nature to this data. We can see that sales tend to increase substantially in December and then decrease again in January. It also appears that sales increases every other month and then decreases slightly the following month. 
+There is a seasonal nature to this data. We can see that sales tend to increase substantially in December and January and then decrease again in February. It also appears that generally, sales increases every other month and then decreases slightly the following month. 
 
 ```{r}
 ggsubseriesplot(myts)
 ```
+We can see above in the subseries plot the same pattern we mentioned before. It appears that December and January sales tend to be higher and then it appears that there is a general pattern where every other month is higher (except for Dec and Jan).
+
 ```{r}
+gglagplot(myts)
+```
+Looking at the lag plot we can see there is clear autocorrelation here. All of the lagged values appear to have a strong relationship, however, we see that a lag of 12 has the highest correlation. 
+
+```{r}
+ggAcf(myts)
+```
+We can see above that all of the correlations are significantly different from zero as indicated by the blue lines. It appears that the strongest relationship occurs at the first lag, and slowly decreases over the next 25 lags. 
+
+#### 6.2
+
+The `plastics` data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.
+
+* Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?
+
+```{r}
+autoplot(plastics)
+```
+There appears to be an upward trend over time. In addition we note mid-year seasonality. There is no cyclicity. 
+
+* Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+
+```{r}
+plastics %>%
+  decompose(type = 'multiplicative') %>%
+autoplot()
+```
+We can see that the plastics dataset has been decomposed into trend, seasonal, and error portions. 
+
+* Do the results support the graphical interpretation from part a?
+
+Yes, the results match our previous assertion. The only difference is we can see that the trend starts to decrease at the end of our dataset which we didn't mention in part a. 
+
+* Compute and plot the seasonally adjusted data.
+
+```{r}
+dcomp <- plastics %>%
+  decompose(type = 'multiplicative') %>%
+  seasonal()
+
+autoplot(plastics / dcomp) + 
+  labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
+```
+
+* Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+
+```{r}
+plastics[10] <- plastics[10] + 1200
+
+dcomp2 <- plastics %>%
+  decompose(type = 'multiplicative') %>%
+  seasonal()
+
+autoplot(plastics / dcomp2) + 
+  labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
 
 ```
+The outlier has had a tremendous effect. We can see that it has completely changed the plot and there are periods of deep declines that weren't in the initial plot. 
+
+* Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+
+```{r}
+plastics[10] <- plastics[10] - 1200
+plastics[52] <- plastics[10] + 1200
+
+dcomp3 <- plastics %>%
+  decompose(type = 'multiplicative') %>%
+  seasonal()
+
+autoplot(plastics / dcomp3) + 
+  labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
+
+```
+The affect of the outlier is still noticeable, however, perhaps not as pronounced as when it was closer to the beginning of the dataset. 
 
