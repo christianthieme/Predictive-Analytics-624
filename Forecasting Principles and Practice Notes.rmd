@@ -342,3 +342,17 @@ In general, an even order MA should be followed by an even order MA to make it s
 A major advantage of weighted moving averages is that they yield a smoother estimate of the trend-cycle. Instead of observations entering and leaving the calculation at full weight, their weights slowly increase and then slowly decrease, resulting in a smoother curve.
 
 #### 3.4 Classical Decomposition
+
+Below shows a classical decomposition of the total retail employment series across the US: 
+
+```{r}
+us_retail_employment %>%
+  model(
+    classical_decomposition(Employed, type = "additive")
+  ) %>%
+  components() %>%
+  autoplot() +
+  labs(title = "Classical additive decomposition of total
+                  US retail employment")
+```
+#### 3.5 Methods used by official statistics agencies
