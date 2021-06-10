@@ -403,4 +403,17 @@ autoplot(seats_dcmp) +
   labs(title =
     "Decomposition of total US retail employment using SEATS")
 ```
+#### 3.6 STL Decomposition
+
+STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using Loess,” while loess is a method for estimating nonlinear relationships. The STL method was developed by R. B. Cleveland et al. (1990).
+
+```{r}
+us_retail_employment %>%
+  model(
+    STL(Employed ~ trend(window = 7) +
+                   season(window = "periodic"),
+    robust = TRUE)) %>%
+  components() %>%
+  autoplot()
+```
 
