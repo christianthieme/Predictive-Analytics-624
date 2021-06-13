@@ -1,0 +1,122 @@
+---
+title: 'Homework 2: Data Pre-processing & Exponential Smoothing'
+author: "Christian Thieme"
+date: "6/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(mlbench)
+library(inspectdf)
+library(mice)
+library(caret)
+library(VIM)
+```
+
+## Applied Predictive Modeling CHapter 3 - Data Pre-processing
+
+### 3.1
+
+**The UC Irvine Machine Learning Repository contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe. The data can be accessed via:**
+
+```{r}
+data(Glass)
+glimpse(Glass)
+```
+* **Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.**
+
+Since our predictors are continuous variables, we'll use histograms to understand their distributions: 
+
+```{r fig.height=6, fig.width=10}
+
+inspectdf::inspect_num(Glass) %>% 
+  show_plot()
+```
+
+We note the following: 
+
+* Al: Appears to have a fairly normal distribution, slightly right skewed
+* Ba: Over 75% of this distribution is 0 values. We note some potential outliers that will need to be investigated. 
+* Ca: The distribution has two values that make up over 60% of the distribution. The distribution is right skewed. 
+* Fe: Similar to Ba, 65% of the values are 0. We note the presence of potential outliers. 
+* K: Two values make up ~90% of the distribution. We note the presence of potential outliers. 
+* Mg: The distribution is bi-modal, which may indicate sub-populations. 20% of the distribution is 0s. The remainder of the distribution is left skewed. 
+* Na: Right skewed.Values before 12.5 are rare. 
+* Rl: The distribution is right skewed. Values before 1.515 are rare. 
+* Si: The distribution is left skewed. Values after 74 are rare. 
+
+Now we turn our attention to the relationship between predictors: 
+
+```{r fig.height=10, fig.width=10, warning=TRUE}
+pairs(Glass %>% dplyr::select_if(is.numeric))
+```
+
+We note very few relationships between the predictors: 
+
+* There appears to be a loosely negative relationship between Ri and Al and Ri and Si. There appears to be a positive relationship between Ri and Ca.
+
+* **Do there appear to be any outliers in the data? Are any predictors skewed?**
+
+We noted skew and outliers in our discussion above of the histograms. 
+
+* **Are there any relevant transformations of one or more predictors that might improve the classification model?**
+
+This data would benefit from centering and scaling as they are all on different scales. Additionally, several of the skewed variables may benefit from a log or similar transformation. We recommend using the Box-Cox approach to determine the necessary transformation for each of the skewed variables. 
+
+### 3.2
+
+**The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmental conditions (e.g., temperature, precipitation) and plant conditions (e.g., left spots, mold growth). The outcome labels consist of 19 distinct classes. The data can be loaded via:**
+
+```{r}
+data("Soybean")
+glimpse(Soybean)
+```
+* **Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?**
+
+We'll look at a chart for all of the factor variables to see the % of the most common level within the factor: 
+
+```{r warning=FALSE}
+# factor analysis. visualize most common factors
+inspectdf::inspect_imb(Soybean) %>% show_plot()
+```
+In looking at the chart, we can see that near zero variance may be an issue for several features within our dataset. For example, mycelium, sclerotia, leaves, and int.discolor all have 85%+ of their values with the same level. As discussed in the reading, this can be problematic. Let's run the `nearZeroVar` function from the `caret` package to see which variables meet the criteria: 
+
+```{r}
+nzv <- caret::nearZeroVar(Soybean, names = TRUE, saveMetrics = TRUE)
+nzv %>% filter(nzv == TRUE)
+```
+We should consider removing the 3 variables above before modeling. 
+
+* **Roughly 18% of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?**
+
+```{r message=FALSE, warning=FALSE}
+aggr(Soybean, prop = c(T, T), bars=T, numbers=T, sortVars=T)
+```
+It does appear that several of the predictors have more than 15% of their values missing such as hail, sever, seed.tmt, and lodging. In looking at the chart on the right, we can see that there are patterns to the missing data - it doesn't look random. 
+
+```{r}
+Soybean %>%
+  filter(!complete.cases(.)) %>% 
+  count(Class) %>% 
+  mutate('% missing' = n/dim(Soybean)[1]) %>% 
+  arrange(desc(`% missing`))
+```
+
+From the missing 18% of our data, we can see that more than half of it is related to the phytophthora-rot class. 
+
+* **Develop a strategy for handling missing data, either by eliminating predictors or imputation.**
+
+In looking at the the proportions and combinations of missing values as well as understanding that half of our missing values come from one class, we have chosen to impute missing values using predictive mean matching (pmm). Predictive mean matching calculates the predicted value for our target variable, and, for missing values, forms a small set of “candidate donors” from the complete cases that are closest to the predicted value for our missing entry. Donors are then randomly chosen from candidates and imputed where values were once missing. This method is similar in theory to knn, however, it is often better at imputation. We can utilize pmm through the `mice` library.
+
+
+```{r message=FALSE, warning=FALSE}
+Sb <- mice(data = Soybean, m = 1, method = "pmm", printFlag=F, seed = 500)
+Sb <- mice::complete(Sb, 1)
+
+colSums(is.na(Sb))
+```
+In the output above, we can see that there are no longer missing values in our dataset. 
+
+## Forecasting: Principles and Practice - Exponential smoothing
