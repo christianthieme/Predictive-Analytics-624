@@ -202,7 +202,7 @@ simple_exponential_smoothing(pigs, simple$model$par[[1]], simple$model$par[[2]])
 
 ```
 
-Our funtion returns 98,816.41. Now let's see what R returns:
+Our function returns 98,816.41. Now let's see what R returns:
 
 ```{r}
 simple$mean[1]
@@ -212,7 +212,7 @@ The values are identical.
 
 ### 7.3
 
-**Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the optim() function to find the optimal values of alpha and lambda 0. Do you get the same values as the ses() function?**
+**Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the `optim()` function to find the optimal values of alpha and lambda 0. Do you get the same values as the ses() function?**
 
 *This [article](https://www.magesblog.com/post/2013-03-12-how-to-use-optim-in-r/) was helpful in solving this question.*
 
