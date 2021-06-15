@@ -19,17 +19,17 @@ library(GGally)
 
 The predictability of an event or a quantity depends on several factors including:
 
-1. how well we understand the factors that contribute to it;
-2. how much data is available;
-3. how similar the future is to the past;
-4. whether the forecasts can affect the thing we are trying to forecast.
+1.  how well we understand the factors that contribute to it;
+2.  how much data is available;
+3.  how similar the future is to the past;
+4.  whether the forecasts can affect the thing we are trying to forecast.
 
 #### 1.3
 
 Quantitative forecasting can be applied when two conditions are satisfied:
 
-1. numerical information about the past is available;
-2. it is reasonable to assume that some aspects of the past patterns will continue into the future.
+1.  numerical information about the past is available;
+2.  it is reasonable to assume that some aspects of the past patterns will continue into the future.
 
 ## Ch 2 Notes
 
@@ -43,7 +43,6 @@ y <- tsibble(
 y
 ```
 
-
 ```{r}
 holidays <- tourism %>%
   filter(Purpose == "Holiday") %>%
@@ -52,6 +51,7 @@ holidays <- tourism %>%
 
 holidays
 ```
+
 ```{r}
 autoplot(holidays, Trips) +
   labs(y = "Overnight trips ('000)",
@@ -90,6 +90,7 @@ vic_elec %>%
     title = "Half-hourly temperatures: Melbourne, Australia"
   )
 ```
+
 ```{r}
 vic_elec %>%
   filter(year(Time) == 2014) %>%
@@ -98,9 +99,10 @@ vic_elec %>%
   labs(x = "Temperature (degrees Celsius)",
        y = "Electricity demand (GW)")
 ```
-The correlation coefficient only measures the strength of the linear relationship, and can sometimes be misleading. 
 
-Scatterplot Matrices: 
+The correlation coefficient only measures the strength of the linear relationship, and can sometimes be misleading.
+
+Scatterplot Matrices:
 
 ```{r}
 visitors <- tourism %>%
@@ -129,13 +131,14 @@ recent_production %>%
   gg_lag(Beer, geom = "point") +
   labs(x = "lag(Beer, k)")
 ```
+
 Here the colours indicate the quarter of the variable on the vertical axis. The relationship is strongly positive at lags 4 and 8, reflecting the strong seasonality in the data. The negative relationship seen for lags 2 and 6 occurs because peaks (in Q4) are plotted against troughs (in Q2)
 
 #### 2.8 - Autocorrelation
 
 Just as correlation measures the extent of a linear relationship between two variables, autocorrelation measures the linear relationship between lagged values of a time series.
 
-There are several autocorrelation coefficients, corresponding to each panel in the lag plot. 
+There are several autocorrelation coefficients, corresponding to each panel in the lag plot.
 
 The autocorrelation coefficients for the beer production data can be computed using the `ACF()` function.
 
@@ -143,7 +146,7 @@ The autocorrelation coefficients for the beer production data can be computed us
 recent_production %>% ACF(Beer, lag_max = 9)
 ```
 
-The values in the acf column are  r1-r9 corresponding to the nine scatterplots in Figure 2.19. We usually plot the ACF to see how the correlations change with the lag k. The plot is sometimes known as a correlogram.
+The values in the acf column are r1-r9 corresponding to the nine scatterplots in Figure 2.19. We usually plot the ACF to see how the correlations change with the lag k. The plot is sometimes known as a correlogram.
 
 ```{r}
 recent_production %>%
@@ -151,7 +154,7 @@ recent_production %>%
   autoplot() + labs(title="Australian beer production")
 ```
 
-#### 2.9 - White Noise    
+#### 2.9 - White Noise
 
 ```{r}
 y <- tsibble(sample = 1:50, wn = rnorm(50), index = sample)
@@ -181,13 +184,14 @@ global_economy %>%
   autoplot(GDP/Population) +
   labs(title= "GDP per capita", y = "$US")
 ```
+
 #### Inflation Adjustments
 
-Data which are affected by the value of money are best adjusted before modelling. For example, the average cost of a new house will have increased over the last few decades due to inflation. A $200,000 house this year is not the same as a $200,000 house twenty years ago. For this reason, financial time series are usually adjusted so that all values are stated in dollar values from a particular year. For example, the house price data may be stated in year 2000 dollars.
+Data which are affected by the value of money are best adjusted before modelling. For example, the average cost of a new house will have increased over the last few decades due to inflation. A \$200,000 house this year is not the same as a \$200,000 house twenty years ago. For this reason, financial time series are usually adjusted so that all values are stated in dollar values from a particular year. For example, the house price data may be stated in year 2000 dollars.
 
 Price indexes are often constructed by government agencies. For consumer goods, a common price index is the Consumer Price Index (or CPI).
 
-This allows us to compare the growth or decline of industries relative to a common price value. For example, looking at aggregate annual “newspaper and book” retail turnover from aus_retail, and adjusting the data for inflation using CPI from global_economy allows us to understand the changes over time.
+This allows us to compare the growth or decline of industries relative to a common price value. For example, looking at aggregate annual "newspaper and book" retail turnover from aus_retail, and adjusting the data for inflation using CPI from global_economy allows us to understand the changes over time.
 
 ```{r}
 print_retail <- aus_retail %>%
@@ -213,7 +217,7 @@ print_retail %>%
 
 #### Mathematical Transformations
 
-A good value of λ is one which makes the size of the seasonal variation about the same across the whole series, as that makes the forecasting model simpler. In this case, λ=0.10 works quite well, although any value of λ  between 0.0 and 0.2 would give similar results.
+A good value of λ is one which makes the size of the seasonal variation about the same across the whole series, as that makes the forecasting model simpler. In this case, λ=0.10 works quite well, although any value of λ between 0.0 and 0.2 would give similar results.
 
 The guerrero feature (Guerrero, 1993) can be used to choose a value of lambda for you. In this case it chooses λ=0.12. (See the next chapter for discussion of the features() function.)
 
@@ -230,6 +234,7 @@ aus_production %>%
          "Transformed gas production with $\\lambda$ = ",
          round(lambda,2))))
 ```
+
 ### 3.2 Time Series Components
 
 ```{r}
@@ -240,12 +245,14 @@ autoplot(us_retail_employment, Employed) +
   labs(y = "Persons (thousands)",
        title = "Total employment in US retail")
 ```
+
 ```{r}
 dcmp <- us_retail_employment %>%
   model(stl = STL(Employed))
 components(dcmp)
 ```
-The output above shows the components of an STL decomposition. The original data is shown (as Employed), followed by the estimated components. This output forms a “dable” or decomposition table. The header to the table shows that the Employed series has been decomposed additively.
+
+The output above shows the components of an STL decomposition. The original data is shown (as Employed), followed by the estimated components. This output forms a "dable" or decomposition table. The header to the table shows that the Employed series has been decomposed additively.
 
 The trend column (containing the trend-cycle Tt) follows the overall movement of the series, ignoring any seasonality and random fluctuations, as shown in Figure 3.6.
 
@@ -259,18 +266,20 @@ components(dcmp) %>%
     title = "Total employment in US retail"
   )
 ```
+
 We can plot all of the components in a single figure using autoplot(), as shown in Figure 3.7.
 
 ```{r}
 components(dcmp) %>% autoplot()
 ```
+
 The three components are shown separately in the bottom three panels. These components can be added together to reconstruct the data shown in the top panel. Notice that the seasonal component changes over time, so that any two consecutive years have similar patterns, but years far apart may have different seasonal patterns. The remainder component shown in the bottom panel is what is left over when the seasonal and trend-cycle components have been subtracted from the data.
 
 The grey bars to the left of each panel show the relative scales of the components. Each grey bar represents the same length but because the plots are on different scales, the bars vary in size. The large grey bar in the bottom panel shows that the variation in the remainder component is smallest compared to the variation in the data. If we shrank the bottom three panels until their bars became the same size as that in the data panel, then all the panels would be on the same scale.
 
 #### Seasonally adjusted data
 
-If the seasonal component is removed from the original data, the resulting values are the “seasonally adjusted” data. 
+If the seasonal component is removed from the original data, the resulting values are the "seasonally adjusted" data.
 
 ```{r}
 components(dcmp) %>%
@@ -280,9 +289,10 @@ components(dcmp) %>%
   labs(y = "Persons (thousands)",
        title = "Total employment in US retail")
 ```
+
 If the variation due to seasonality is not of primary interest, the seasonally adjusted series can be useful. For example, monthly unemployment data are usually seasonally adjusted in order to highlight variation due to the underlying state of the economy rather than the seasonal variation. An increase in unemployment due to school leavers seeking work is seasonal variation, while an increase in unemployment due to an economic recession is non-seasonal. Most economic analysts who study unemployment data are more interested in the non-seasonal variation. Consequently, employment data (and many other economic series) are usually seasonally adjusted.
 
-Seasonally adjusted series contain the remainder component as well as the trend-cycle. Therefore, they are not “smooth,” and “downturns” or “upturns” can be misleading. If the purpose is to look for turning points in a series, and interpret any changes in direction, then it is better to use the trend-cycle component rather than the seasonally adjusted data.
+Seasonally adjusted series contain the remainder component as well as the trend-cycle. Therefore, they are not "smooth," and "downturns" or "upturns" can be misleading. If the purpose is to look for turning points in a series, and interpret any changes in direction, then it is better to use the trend-cycle component rather than the seasonally adjusted data.
 
 ### 3.3 Moving Averages
 
@@ -292,7 +302,8 @@ global_economy %>%
   autoplot(Exports) +
   labs(y = "% of GDP", title = "Total Australian exports")
 ```
-This is easily computed using slide_dbl() from the slider package which applies a function to “sliding” time windows. In this case, we use the mean() function with a window of size 5.
+
+This is easily computed using slide_dbl() from the slider package which applies a function to "sliding" time windows. In this case, we use the mean() function with a window of size 5.
 
 ```{r}
 aus_exports <- global_economy %>%
@@ -303,6 +314,7 @@ aus_exports <- global_economy %>%
   )
 aus_exports
 ```
+
 To see what the trend-cycle estimate looks like, we plot it along with the original data.
 
 ```{r}
@@ -313,6 +325,7 @@ aus_exports %>%
        title = "Total Australian exports") +
   guides(colour = guide_legend(title = "series"))
 ```
+
 Simple moving averages such as these are usually of an odd order (e.g., 3, 5, 7, etc.). This is so they are symmetric: in a moving average of order m=2k+1, the middle observation, and k observations on either side, are averaged. But if m was even, it would no longer be symmetric.
 
 #### Moving Averages of Moving Averages
@@ -343,7 +356,7 @@ A major advantage of weighted moving averages is that they yield a smoother esti
 
 #### 3.4 Classical Decomposition
 
-Below shows a classical decomposition of the total retail employment series across the US: 
+Below shows a classical decomposition of the total retail employment series across the US:
 
 ```{r}
 us_retail_employment %>%
@@ -355,6 +368,7 @@ us_retail_employment %>%
   labs(title = "Classical additive decomposition of total
                   US retail employment")
 ```
+
 #### 3.5 Methods used by official statistics agencies
 
 The X-11 method originated in the US Census Bureau and was further developed by Statistics Canada. It is based on classical decomposition, but includes many extra steps and features in order to overcome the drawbacks of classical decomposition that were discussed in the previous section. In particular, trend-cycle estimates are available for all observations including the end points, and the seasonal component is allowed to vary slowly over time. X-11 also handles trading day variation, holiday effects and the effects of known predictors. There are methods for both additive and multiplicative decomposition. The process is entirely automatic and tends to be highly robust to outliers and level shifts in the time series. The details of the X-11 method are described in Dagum & Bianconcini (2016).
@@ -367,6 +381,7 @@ autoplot(x11_dcmp) +
   labs(title =
     "Decomposition of total US retail employment using X-11.")
 ```
+
 Below shows the trend-cycle component and the seasonally adjusted data, along with the original data. The seasonally adjusted data is very similar to the trend-cycle component in this example, so it is hard to distinguish them on the plot.
 
 ```{r}
@@ -393,7 +408,7 @@ x11_dcmp %>%
 
 #### SEATS method
 
-“SEATS” stands for “Seasonal Extraction in ARIMA Time Series” (ARIMA models are discussed in Chapter 9). This procedure was developed at the Bank of Spain, and is now widely used by government agencies around the world. The details are beyond the scope of this book. However, a complete discussion of the method is available in Dagum & Bianconcini (2016).
+"SEATS" stands for "Seasonal Extraction in ARIMA Time Series" (ARIMA models are discussed in Chapter 9). This procedure was developed at the Bank of Spain, and is now widely used by government agencies around the world. The details are beyond the scope of this book. However, a complete discussion of the method is available in Dagum & Bianconcini (2016).
 
 ```{r}
 seats_dcmp <- us_retail_employment %>%
@@ -403,9 +418,10 @@ autoplot(seats_dcmp) +
   labs(title =
     "Decomposition of total US retail employment using SEATS")
 ```
+
 #### 3.6 STL Decomposition
 
-STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using Loess,” while loess is a method for estimating nonlinear relationships. The STL method was developed by R. B. Cleveland et al. (1990).
+STL is a versatile and robust method for decomposing time series. STL is an acronym for "Seasonal and Trend decomposition using Loess," while loess is a method for estimating nonlinear relationships. The STL method was developed by R. B. Cleveland et al. (1990).
 
 ```{r}
 us_retail_employment %>%
@@ -417,5 +433,27 @@ us_retail_employment %>%
   autoplot()
 ```
 
+## Ch 9 Notes
 
+#### 9.1 Stationarity and differencing
 
+Transformations such as logarithms can help to stabilise the variance of a time series. Differencing can help stabilise the mean of a time series by removing changes in the level of a time series, and therefore eliminating (or reducing) trend and seasonality.
+
+As well as the time plot of the data, the ACF plot is also useful for identifying non-stationary time series. For a stationary time series, the ACF will drop to zero relatively quickly, while the ACF of non-stationary data decreases slowly. Also, for non-stationary data, the value of\
+r 1 is often large and positive.
+
+![](images/Screenshot%202021-06-14%20094547.jpg)
+
+![](images/Screenshot%202021-06-14%20094659.jpg)
+
+The ACF of the differenced Google stock price looks just like that of a white noise series. Only one autocorrelation is outside of the 95% limits, and the Ljung-Box Q∗Q∗ statistic has a *p*-value of 0.637 (for h=10h=10). This suggests that the *daily change* in the Google stock price is essentially a random amount which is uncorrelated with that of previous days.
+
+In this case, y′′t will have T−2T−2 values. Then, we would model the "change in the changes" of the original data. In practice, it is almost never necessary to go beyond second-order differences.
+
+Beware that applying more differences than required will induce false dynamics or autocorrelations that do not really exist in the time series. Therefore, do as few differences as necessary to obtain a stationary series.
+
+A number of unit root tests are available, which are based on different assumptions and may lead to conflicting answers. In our analysis, we use the *Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test* ([Kwiatkowski et al., 1992](https://otexts.com/fpp3/stationarity.html#ref-KPSS92)). In this test, the null hypothesis is that the data are stationary, and we look for evidence that the null hypothesis is false. Consequently, small p-values (e.g., less than 0.05) suggest that differencing is required. The test can be computed using the `unitroot_kpss()` function.
+
+For example, let us apply it to the Google stock price data.
+
+![](images/Screenshot%202021-06-14%20095950.jpg)
