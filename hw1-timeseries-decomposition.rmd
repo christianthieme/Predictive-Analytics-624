@@ -1,8 +1,10 @@
 ---
 title: 'HW1: Forecasting: Principles and Practices'
-author: "Christian Thieme"
+author: "Group 4 - Subhalaxmi Rout, Kenan Sooklall, Devin Teran, Christian Thieme, Leo Yi"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  word_document: default
 ---
 
 
@@ -15,44 +17,53 @@ library(fpp3)
 library(fabletools)
 ```
 
-# Homework 1: 
+# Homework 1: Time Series and Decomposition
+
+## Forecasting: Principles and Practice
 
 #### 2.1
 
-Use the help function to explore what the series `gold`, `woolyrnq` and `gas` represent.
+**Use the help function to explore what the series `gold`, `woolyrnq` and `gas` represent.**
 
 ```{r}
-?gold
-?woolyrnq
-?gas
+#?gold
+#?woolyrnq
+#?gas
 ```
 
-* Use `autoplot()` to plot each of these in seperate plots. 
+**$(a)$. Use `autoplot()` to plot each of these in seperate plots.** 
 
 ```{r}
 autoplot(gold)
 autoplot(woolyrnq)
 autoplot(gas)
 ```
-* What is the frequency of each series?  
 
-Gold series: 
+**$(b)$ What is the frequency of each series? Hint: apply the `frequency()` function.** 
+
+Gold: 
 
 ```{r}
 frequency(gold)
 ```
-Woolyrnq series: 
+- Gold frequency is yearly 
+
+Woolyrnq: 
 
 ```{r}
 frequency(woolyrnq)
 ```
-Gas series: 
+- Woolyrng frequency is quarterly
+
+Gas: 
 
 ```{r}
 frequency(gas)
 ```
 
-* Use `which.max()` to spot the outlier in the `gold` series. Which observation is it? 
+- Gas frequency is monthly
+
+**$(c)$ Use `which.max()` to spot the outlier in the gold series. Which observation was it?** 
 
 ```{r}
 which.max(gold)
@@ -64,73 +75,84 @@ gold[which.max(gold)]
 ```
 #### 2.3
 
-Download some monthly Australian retail data from [the book website](https://otexts.com/fpp2/extrafiles/retail.xlsx). These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.
+**Download some monthly Australian retail data from [the book website](https://otexts.com/fpp2/extrafiles/retail.xlsx). These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.**
 
-* You can read the data into R with the following script: 
+**$(a)$ You can read the data into R with the following script:**
 
 ```{r}
 retaildata <- readxl::read_excel("retail.xlsx", skip=1)
 ```
 
-* Select one of the time series as follows (but replace the column name with your own chosen column):
+**$(b)$ Select one of the time series as follows (but replace the column name with your own chosen column):**
 
 ```{r}
 myts <- ts(retaildata[,"A3349335T"],
   frequency=12, start=c(1982,4))
 ```
 
-* Explore your chosen retail time series using the following functions:
+**$(c)$ Explore your chosen retail time series using the following functions:**
+
+**autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf()**
+
+**Can you spot any seasonality, cyclicity and trend? What do you learn about the series?**
 
 ```{r}
 autoplot(myts)
 ```
+
 It appears that the data trends upward and that there is a seasonal component to the data as well. There does not appear to be cyclicity.
 
 ```{r}
 ggseasonplot(myts)
 ```
+
 There is a seasonal nature to this data. We can see that sales tend to increase substantially in December and January and then decrease again in February. It also appears that generally, sales increases every other month and then decreases slightly the following month. 
 
 ```{r}
 ggsubseriesplot(myts)
 ```
+
 We can see above in the subseries plot the same pattern we mentioned before. It appears that December and January sales tend to be higher and then it appears that there is a general pattern where every other month is higher (except for Dec and Jan).
 
-```{r}
+```{r fig.height=8}
 gglagplot(myts)
 ```
+
 Looking at the lag plot we can see there is clear autocorrelation here. All of the lagged values appear to have a strong relationship, however, we see that a lag of 12 has the highest correlation. 
 
 ```{r}
 ggAcf(myts)
 ```
-We can see above that all of the correlations are significantly different from zero as indicated by the blue lines. It appears that the strongest relationship occurs at the first lag, and slowly decreases over the next 25 lags. 
+
+We can see above that all of the correlations are significantly different from zero as indicated by the blue lines. It appears that the strongest relationship occurs at the first lag, and slowly decreases over the next 25 lags.
 
 #### 6.2
 
-The `plastics` data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.
+**The `plastics` data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.**
 
-* Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?
+**$(a)$ Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?**
 
 ```{r}
 autoplot(plastics)
 ```
+
 There appears to be an upward trend over time. In addition we note mid-year seasonality. There is no cyclicity. 
 
-* Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+**$(b)$ Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.**
 
 ```{r}
 plastics %>%
   decompose(type = 'multiplicative') %>%
 autoplot()
 ```
+
 We can see that the plastics dataset has been decomposed into trend, seasonal, and error portions. 
 
-* Do the results support the graphical interpretation from part a?
+**$(c)$ Do the results support the graphical interpretation from part a?**
 
 Yes, the results match our previous assertion. The only difference is we can see that the trend starts to decrease at the end of our dataset which we didn't mention in part a. 
 
-* Compute and plot the seasonally adjusted data.
+**$(d)$ Compute and plot the seasonally adjusted data.**
 
 ```{r}
 dcomp <- plastics %>%
@@ -141,34 +163,25 @@ autoplot(plastics / dcomp) +
   labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
 ```
 
-* Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+**$(e)$ Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?**
 
 ```{r}
-plastics[10] <- plastics[10] + 1200
-
-dcomp2 <- plastics %>%
-  decompose(type = 'multiplicative') %>%
-  seasonal()
-
-autoplot(plastics / dcomp2) + 
-  labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
-
+tmp <- plastics[50]
+plastics[50] <- plastics[50] + 9999
+seasonally_adj <- plastics / (plastics %>% decompose(type='multiplicative'))$seasonal 
+autoplot(seasonally_adj, series="Data")
 ```
+
 The outlier has had a tremendous effect. We can see that it has completely changed the plot and there are periods of deep declines that weren't in the initial plot. 
 
-* Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+**$(f)$ Does it make any difference if the outlier is near the end rather than in the middle of the time series?**
 
 ```{r}
-plastics[10] <- plastics[10] - 1200
-plastics[52] <- plastics[10] + 1200
-
-dcomp3 <- plastics %>%
-  decompose(type = 'multiplicative') %>%
-  seasonal()
-
-autoplot(plastics / dcomp3) + 
-  labs(title = "Seasonally Adjusted Plastic Sales", y = "Seasonally adjusted Sales ($1Ks)")
-
+plastics[50] <- tmp
+plastics[2] <- plastics[2] + 9999
+seasonally_adj <- plastics / (plastics %>% decompose(type='multiplicative'))$seasonal 
+autoplot(seasonally_adj, series="Data")
 ```
-The affect of the outlier is still noticeable, however, perhaps not as pronounced as when it was closer to the beginning of the dataset. 
+
+The outlier location makes a difference on where the spike is located. An outlier at the beginning almost completely destroys the seasonal fluctuations. 
 

@@ -1,10 +1,10 @@
 ---
 title: 'Homework 2: Data Pre-processing & Exponential Smoothing'
-author: "Christian Thieme"
+author: "Group 4 - Subhalaxmi Rout, Kenan Sooklall, Devin Teran, Christian Thieme, Leo Yi"
 date: "6/12/2021"
 output:
-  word_document: default
   html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,12 +13,13 @@ library(tidyverse)
 library(mlbench)
 library(inspectdf)
 library(mice)
+library(corrplot)
 library(caret)
 library(VIM)
 library(fma)
 ```
 
-## Applied Predictive Modeling CHapter 3 - Data Pre-processing
+## Applied Predictive Modeling Chapter 3 - Data Pre-processing
 
 ### 3.1
 
@@ -29,7 +30,7 @@ data(Glass)
 glimpse(Glass)
 ```
 
--   **Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.**
+**$(a)$ Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.**
 
 Since our predictors are continuous variables, we'll use histograms to understand their distributions:
 
@@ -51,21 +52,29 @@ We note the following:
 -   Rl: The distribution is right skewed. Values before 1.515 are rare.
 -   Si: The distribution is left skewed. Values after 74 are rare.
 
-Now we turn our attention to the relationship between predictors:
+Now we turn our attention to the relationship between predictors. We'll review a correlation plot to assess the relationship between predictors: 
+
+```{r fig.height=8, fig.width=8}
+correlation <- cor(Glass %>% select(-c('Type')))
+corrplot.mixed(correlation, tl.col = 'black', tl.pos = 'lt')
+```
+
+Correlation plots can be deceiving if used without looking at the visual relationship between the data. Let's create some scatter plots of the relationships as well. 
 
 ```{r fig.height=10, fig.width=10, warning=TRUE}
 pairs(Glass %>% dplyr::select_if(is.numeric))
 ```
 
-We note very few relationships between the predictors:
+We note very few meaningful relationships between the predictors despite what the correlation plot shows:
 
 -   There appears to be a loosely negative relationship between Ri and Al and Ri and Si. There appears to be a positive relationship between Ri and Ca.
 
--   **Do there appear to be any outliers in the data? Are any predictors skewed?**
+
+**$(b)$ Do there appear to be any outliers in the data? Are any predictors skewed?**
 
 We noted skew and outliers in our discussion above of the histograms.
 
--   **Are there any relevant transformations of one or more predictors that might improve the classification model?**
+**$(c)$ Are there any relevant transformations of one or more predictors that might improve the classification model?**
 
 This data would benefit from centering and scaling as they are all on different scales. Additionally, several of the skewed variables may benefit from a log or similar transformation. We recommend using the Box-Cox approach to determine the necessary transformation for each of the skewed variables.
 
@@ -78,7 +87,7 @@ data("Soybean")
 glimpse(Soybean)
 ```
 
--   **Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?**
+**$(a)$ Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?**
 
 We'll look at a chart for all of the factor variables to see the % of the most common level within the factor:
 
@@ -96,13 +105,13 @@ nzv %>% filter(nzv == TRUE)
 
 We should consider removing the 3 variables above before modeling.
 
--   **Roughly 18% of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?**
+**$(b)$ Roughly 18% of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?**
 
-```{r message=FALSE, warning=FALSE}
-aggr(Soybean, prop = c(T, T), bars=T, numbers=T, sortVars=T)
+```{r}
+visdat::vis_miss(Soybean, sort_miss = TRUE)
 ```
 
-It does appear that several of the predictors have more than 15% of their values missing such as hail, sever, seed.tmt, and lodging. In looking at the chart on the right, we can see that there are patterns to the missing data - it doesn't look random.
+9.5% of the data have NAs. Several of the predictors have more than 15% of their values missing such as hail, sever, seed.tmt, and lodging. Additionally, the missing values appear to have some pattern as the nulls are not random.
 
 ```{r}
 Soybean %>%
@@ -112,9 +121,29 @@ Soybean %>%
   arrange(desc(`% missing`))
 ```
 
-From the missing 18% of our data, we can see that more than half of it is related to the phytophthora-rot class.
+From the missing 18% of our data, we can see that more than half of it is related to the phytophthora-rot class. The percentages show us what percent of the total data is missing, but lets investigate how much of each class is missing: 
 
--   **Develop a strategy for handling missing data, either by eliminating predictors or imputation.**
+```{r}
+complete <- Soybean %>%
+  count(Class) %>%
+  rename(total = n)
+
+missing <- Soybean %>%
+  filter(!complete.cases(.)) %>% 
+  count(Class) %>%
+  rename(missing = n)
+
+final <- missing %>% 
+  left_join(complete) %>% 
+  mutate('% missing' = missing/total)
+
+final
+  
+```
+
+It appears that several classes are missing at least one cell in each observation (Albeit, they may be a fairly small part of the population).Phytophthora-rot is missing data in 77% of its observations and is a larger percentage of the total population. 
+
+**$(c)$ Develop a strategy for handling missing data, either by eliminating predictors or imputation.**
 
 In looking at the the proportions and combinations of missing values as well as understanding that half of our missing values come from one class, we have chosen to impute missing values using predictive mean matching (pmm). Predictive mean matching calculates the predicted value for our target variable, and, for missing values, forms a small set of "candidate donors" from the complete cases that are closest to the predicted value for our missing entry. Donors are then randomly chosen from candidates and imputed where values were once missing. This method is similar in theory to knn, however, it is often better at imputation. We can utilize pmm through the `mice` library.
 
@@ -137,9 +166,9 @@ In the output above, we can see that there are no longer missing values in our d
 pigs <- fma::pigs
 ```
 
--   **Use the `ses()` function in R to find the optimal values of alpha and lambda, and generate forecasts for the next four months.**
+**$(a)$ Use the `ses()` function in R to find the optimal values of $\alpha$ and $l_0$, and generate forecasts for the next four months.**
 
-Optimal values of lambda can be found by looking at the `model` element of the forecast object.
+Optimal values can be found by looking at the `model` element of the forecast object.
 
 ```{r}
 simple <- ses(pigs, h = 4)
@@ -152,7 +181,7 @@ In the code above, we generated the next 4 months of predictions. We can access 
 simple$mean
 ```
 
--   **Compute a 95% prediction interval for the first forecast using y±1.96s where s is the standard deviation of the residuals. Compare your interval with the interval produced by R.**
+**$(b)$ Compute a 95% prediction interval for the first forecast using $y±1.96s$ where s is the standard deviation of the residuals. Compare your interval with the interval produced by R.**
 
 ```{r}
 prediction <- simple$mean[1] 
@@ -184,7 +213,6 @@ We can see that the interval is very close. It's within \~68 on each side.
 **Write your own function to implement simple exponential smoothing. The function should take arguments y (the time series), alpha (the smoothing parameter alpha) and level (the initial level lambda). It should return the forecast of the next observation in the series. Does it give the same forecast as `ses()`?**
 
 ```{r}
-#========== FORECASTING FUNCTION ==========#
 
 simple_exponential_smoothing <- function(y, alpha, level) {
   
@@ -212,7 +240,7 @@ The values are identical.
 
 ### 7.3
 
-**Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the `optim()` function to find the optimal values of alpha and lambda 0. Do you get the same values as the ses() function?**
+**Modify your function from the previous exercise to return the sum of squared errors rather than the forecast of the next observation. Then use the `optim()` function to find the optimal values of alpha and lambda 0. Do you get the same values as the `ses()` function?**
 
 *This [article](https://www.magesblog.com/post/2013-03-12-how-to-use-optim-in-r/) was helpful in solving this question.*
 
