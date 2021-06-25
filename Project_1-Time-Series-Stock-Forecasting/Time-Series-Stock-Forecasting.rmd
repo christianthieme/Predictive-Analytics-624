@@ -37,7 +37,6 @@ glimpse(data)
 
 ## S05
 
-
 S05 contains two variables that we'll be creating forecasts for, `Var02` and `Var03`. We'll begin by cleaning up the data a little bit. First, we'll create a date column then select the variables we want to keep as there are some unneeded columns in the data. Next we'll transform our dataset into a `tsibble`, which is a data structure in R that has time series properties. We'll also split our data into our training and test sets.
 
 ```{r}
@@ -62,9 +61,12 @@ head(train %>%
        count_gaps())
 ```
 
+
 We can see that there are implicit gaps in our data, which we would expect as this is stock data and the market is closed on weekends and holidays.
 
-## Var02 - Analysis
+## Variable Analysis - Var02 & Var03
+
+### Var02 - Analysis
 
 Having cleaned and transformed the data a little bit, lets plot `Var02` from our dataset. `Var02` is the daily stock volume for Exxon Mobile (XOM).
 
@@ -74,29 +76,25 @@ train %>%
   labs(title = 'Exxon Mobile Daily Stock Volume')
 
 ```
+
 Our first glimpse of the data shows a pretty noisy dataset with a lot of movement. It's hard to tell if this is white noise or if there is some seasonality. We'll need to do some additional analysis to see if we can tease this information from the data. Further, we note that there are several large spikes within the data. While these do appear to be abnormal or outliers, we have no reason to remove or change them as they represent actual data that is not erroneous. 
 
-## Distribution
+## Var02 Distribution
 
 Let's take a look at the distribution of `Var02`. 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 ggplot(train) + 
   aes(x = Var02) + 
   geom_histogram()
 ```
-The distribution appears to be right skewed. This indicates that perhaps a log transformation might be helpful. Applying a log transformation, we see the distribution below becomes more normal. 
 
-```{r}
-ggplot(train) + 
-  aes(x = log(Var02)) + 
-  geom_histogram()
-```
+The distribution appears to be right skewed. This indicates that perhaps a transformation might be helpful. We'll keep this in mind for our modeling section. 
 
 
-## Seasonality
+## Var02 Seasonality
 
-Because our data has some implicit data gaps, we can't use the built in `gg_season` function. We'll need to do this using `ggplot2`.
+Because our data has some implicit data gaps, we can't use the built in `gg_season` function. We'll need to build our seasonal plot using `ggplot2`.
 
 ```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
 train %>%
@@ -108,6 +106,8 @@ train %>%
   labs(title = "Seasonal Analysis of Exxon Stock Volume", x = '') + 
   scale_x_date(date_labels = '%b')
 ```
+
+
 In looking at the plot above, there does look like there may be some seasonality to this data. While the data is noisy, it does appear that many peaks and valleys occur during the same periods every year. Let's look at this data as a grid instead of stacked:
 
 ```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
@@ -121,12 +121,14 @@ train %>%
   scale_x_date(date_labels = '%b') + 
   facet_wrap(~year)
 ```
-Again, the data is super noisy, however, looking at the data like this, it appears that there may be some minor seasonality at certain times of the year, but for the most part, the distribution looks fairly random. 
+
+
+Again, the data is super noisy, however, looking at the data like this, it appears that there may be some seasonality at certain times of the year, meaning the cycle would be yearly. With a yearly cycle, we would say the frequency is 365. 
 
 
 Let's further decompose this data to get a better view of the seasonality and trend. 
 
-## Decomposition
+## Var02 Decomposition
 
 ```{r}
 
@@ -140,16 +142,20 @@ t %>%
   autoplot()
 
 ```
-Looking at the above decomposition is surprising. I think the trend was somewhat recognizable from our initial plot, however, it looks like some seasonality exits at the yearly level. If we look specifically at the seasonal plot below (truncated view), we can see that a full cycle takes about a year (0 to 400).  
 
-```{r fig.width=10}
+Looking at the above decomposition, the trend was somewhat recognizable from our initial plot, however, it looks like some seasonality exits at the yearly level. If we look specifically at the seasonal plot below (truncated view), we can see that a full cycle takes about a year (10 to 375).  
+
+```{r fig.width=10, message=FALSE, warning=FALSE}
 s <- t %>% decompose('multiplicative')
 plot(s$seasonal[c(250:800)], type = "line")
+abline(v = 10, col = "red")
+abline(v = 375, col = "red")
+
 ```
 
-## Dealing with Missing Values
+## Var02 Dealing with Missing Values
 
-Let's check out dataset for missing values: 
+Let's check our dataset for missing values: 
 
 ```{r}
 train[!complete.cases(train$Var02),]
@@ -164,6 +170,7 @@ train %>%
   aes(x = date, y = Var02) + 
   geom_line()
 ```
+
 As we can see, the values are all over the place. That being said, I'm not sure we could argue for one method over another one. We could fill the missing value with the average over the last several days before and after the point or perhaps the easiest thing to do is just to fill that value with the proceeding value. We'll move forward with the second option and then visualize the imputation:
 
 ```{r}
@@ -176,21 +183,24 @@ train%>%
   aes(x = date, y = Var02) + 
   geom_line()
 ```
-## ACF & PACF
+## Var02 ACF & PACF
 
 Now that we've investigated our data, lets begin our model building process. If you're not using an automated method, you need too investigate differencing and the ACF and PACF plots in order to build the appropriate fitting model. I'll include these below, but will opt to use the `auto.arima` function, which will find the optimal parameters for our function.  
 
 ```{r}
 ggtsdisplay(train$Var02)
 ```
-Looking at this plot we can tell that our data is highly correlated with itself. We can also see there is a need for differencing differencing. I'll difference the data here to show that differencing once provides a stationary dataset. 
 
-```{r}
-difference(train$Var02) %>% ggtsdisplay()
+Looking at this plot we can tell that our data is highly correlated with itself. We can also see there is a need for differencing. I'll difference the data here to show that differencing once provides a stationary dataset. 
+
+```{r message=FALSE, warning=FALSE}
+difference(train$Var02) %>% 
+  ggtsdisplay()
 ```
-Looking at our differenced data above, we can see that our dataset now looks like white noise. 
 
-## Model Building
+Looking at our differenced data above, we can see that our dataset now looks like white noise. Looking at the first lag of our ACF and PACF plot, we can see that our initial model will probably include an MA variable. Additionally, we we see the PACF plot drops off after 4 lags, which would most likely mean the model should include this as an autoregressive parameter for the model. 
+
+## Var02 Model Building
 
 We'll use `auto.arima` to build our initial model. We'll first need to split our training set into train and test sets so we can run our model on 'unseen' data. 
 
@@ -212,6 +222,7 @@ fit <- auto.arima(ts_train, D=1)
 ```{r}
 summary(fit)
 ```
+
 Here we see our MAPE is ~24.97%, which isn't bad. On average, about 25% of our forecast is incorrect. We'll now build our forecast. 
 
 ```{r}
@@ -224,19 +235,23 @@ end = c(1,325),
 frequency = 365) 
 ```
 
+
 Having built our forecast, lets look at it plotted against the actuals. 
 
 ```{r}
 ts_test %>% 
   autoplot(series = "actuals") + 
-  autolayer(predictions) 
+  autolayer(predictions)  + 
+  labs(title = "Actuals vs Predictions", y = "Volume")
 ```
+
 We can see that while our forecast captures much of the variability within the data, it is not an incredibly accurate forecast. With stock data, we expect that our forecast will be less than desirable since movements in stock and volume are mostly a random walk. 
 
 
 ```{r}
 forecast::accuracy(as.numeric((prediction$mean)),as.numeric((ts_test)))
 ```
+
 Looking at our MAPE on the test set, we see that on average, 42% of our forecast is is incorrect. Now we'll look at the residuals. 
 
 
@@ -247,7 +262,7 @@ fit %>% residuals () %>%
 
 While the residuals do look like white noise, we see in our ACF plot that we have many spikes that cross the critical boundary. This is concerning because it means that our confidence interval calculations won't be reliable. As our main focus in this exercise is to produce a forecast, we'll continue with producing a forecast since these checks won't affect the reliability of the forecasted values. 
 
-# Final Test
+# Var02 Final Test
 
 We'll now train on the entire training set and then generate our final predictions. 
 
@@ -262,25 +277,232 @@ final_predictions <- final_fit %>% forecast(h = dim(test)[1])
 ```{r}
 summary(final_fit)
 ```
+
 Looks like our final fit is VERY similar to our previous fit. We can view our final forecasted values in the plot below: 
 
 ```{r}
 final_predictions$mean %>% autoplot() + 
   ggtitle('Final Forecast')
 ```
-# Export Data to CSV
+
+# Var02 Prep to Export
 
 ```{r}
 df <- as.data.frame(final_predictions$mean)
 names(df) <- 'Var02'
 df
 ```
-```{r}
-write_csv(df, "S05 predictions.csv" )
+
+### Var03 - Analysis
+
+Lets now plot `Var03` from our dataset. `Var03` is the daily low stock price for Exxon Mobile (XOM).
+
+```{r message=FALSE, warning=FALSE}
+train %>% 
+  autoplot(Var03) + 
+  labs(title = 'Exxon Mobile Daily Low Stock Price')
+```
+
+Our first glimpse of the data shows a a lot of movement. It appears that there is an upward trend for several years and then a decline around mid-2014. It's hard to tell, but it doesn't look like there is seasonality in this data. 
+
+## Var03 Distribution
+
+Let's take a look at the distribution of `Var03`. 
+
+```{r message=FALSE, warning=FALSE}
+ggplot(train) + 
+  aes(x = Var03) + 
+  geom_histogram()
+```
+
+The distribution appears to be strongly left skewed. This indicates that perhaps a transformation might be helpful. We'll keep this in mind for our modeling section. 
+
+
+## Var03 Seasonality
+
+Because our data has some implicit data gaps, we can't use the built in `gg_season` function. We'll need to build our seasonal plot using `ggplot2`.
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+train %>%
+  mutate(year = as.factor(year(date))) %>%
+  mutate(new_date = as.Date(paste0('2010-', month(date),'-', day(date)))) %>% 
+  ggplot() + 
+  aes(x = new_date, y = Var03, color = year) + 
+  geom_line() +
+  labs(title = "Seasonal Analysis of Exxon Low Stock Price", x = '', y = 'Price') + 
+  scale_x_date(date_labels = '%b')
 ```
 
 
-# Var03 Tomorrow. Will be easy copy and paste
+In looking at the plot above, as we mentioned above, it doesn't look like there is a seasonal component to this series. It looks fairly random from year to year.
+
+
+Let's further decompose this data to get a better view of the seasonality and trend. 
+
+## Var03 Decomposition
+
+```{r}
+
+tn <- train[complete.cases(train),]
+
+
+t <- ts(tn$Var03,  frequency = 365.25, start = 2010)
+
+t %>% 
+  decompose('multiplicative') %>% 
+  autoplot()
+
+```
+
+Looking at the above decomposition, the trend was recognizable from our initial plot, however, it looks like some seasonality exits at the yearly level. If we look specifically at the seasonal plot below (truncated view), we can see that a full cycle takes about a year (25 to 390).  
+
+```{r fig.width=10, message=FALSE, warning=FALSE}
+s <- t %>% decompose('multiplicative')
+plot(s$seasonal[c(250:800)], type = "line")
+abline(v = 25, col = "red")
+abline(v = 390, col = "red")
+
+```
+
+
+## Var03 Dealing with Missing Values
+
+Let's check our dataset for missing values: 
+
+```{r}
+train[!complete.cases(train$Var03),]
+```
+
+In looking at the above, it looks like there are 5 rows where we are missing a value. As we did with `Var02`, we'll use the previous value to fill these nulls. 
+
+```{r}
+train <- train %>% 
+  tidyr::fill(Var03, .direction = "down") 
+
+train[!complete.cases(train$Var03),]
+```
+
+We can see that our missing values have been filled.
+
+## Var03 ACF & PACF
+
+Now that we've investigated our data, lets begin our model building process. If you're not using an automated method, you need too investigate differencing and the ACF and PACF plots in order to build the appropriate fitting model. I'll include these below, but will opt to use the `auto.arima` function, which will find the optimal parameters for our function.  
+
+```{r}
+ggtsdisplay(train$Var03) 
+```
+
+Looking at this plot we can tell that our data is highly correlated with itself. We can also see there is a need for differencing. I'll difference the data here to show that differencing once provides a stationary dataset. 
+
+```{r message=FALSE, warning=FALSE}
+difference(train$Var03) %>% 
+  ggtsdisplay()
+```
+
+Looking at our differenced data above, we can see that our dataset now looks like white noise. Looking at the first lag of our ACF and PACF plot, we can see that our initial model will probably include an MA variable. 
+
+## Var03 Model Building
+
+We'll use `auto.arima` to build our initial model. We'll first need to split our training set into train and test sets so we can run our model on 'unseen' data. 
+
+```{r}
+Var03 <- train$Var03
+
+break_num <- floor(length(Var03)*0.8)
+ts_train <- ts(Var03[1:break_num],frequency = 365)
+ts_test  <- ts(Var03[(break_num+1):length(Var03)],frequency = 365)
+
+```
+
+
+```{r}
+fit <- auto.arima(ts_train, D=1)
+```
+
+
+```{r}
+summary(fit)
+```
+
+Here we see our MAPE is ~24.97%, which isn't bad. On average, about 25% of our forecast is incorrect. We'll now build our forecast. 
+
+```{r}
+prediction <- fit %>% forecast(h = length(ts_test))
+```
+
+```{r}
+predictions <- ts(prediction$mean, start = c(1, 1), 
+end = c(1,325), 
+frequency = 365) 
+```
+
+
+Having built our forecast, lets look at it plotted against the actuals. 
+
+```{r}
+ts_test %>% 
+  autoplot(series = "actuals") + 
+  autolayer(predictions)  + 
+  labs(title = "Actuals vs Predictions", y = "Volume")
+```
+
+We can see that while our forecast captures much of the variability within the data, it is not an incredibly accurate forecast. With stock data, we expect that our forecast will be less than desirable since movements in stock and volume are mostly a random walk. 
+
+
+```{r}
+forecast::accuracy(as.numeric((prediction$mean)),as.numeric((ts_test)))
+```
+
+Looking at our MAPE on the test set, we see that on average, 42% of our forecast is is incorrect. Now we'll look at the residuals. 
+
+
+```{r}
+fit %>% residuals () %>%
+  ggtsdisplay()
+```
+
+While the residuals do look like white noise, we see in our ACF plot that we have many spikes that cross the critical boundary. This is concerning because it means that our confidence interval calculations won't be reliable. As our main focus in this exercise is to produce a forecast, we'll continue with producing a forecast since these checks won't affect the reliability of the forecasted values. 
+
+# Var03 Final Test
+
+We'll now train on the entire training set and then generate our final predictions. 
+
+```{r}
+final_train <- ts(train$Var03,frequency = 365)
+
+final_fit <- auto.arima(final_train, D=1)
+
+final_predictions <- final_fit %>% forecast(h = dim(test)[1])
+```
+
+```{r}
+summary(final_fit)
+```
+
+Looks like our final fit is VERY similar to our previous fit. We can view our final forecasted values in the plot below: 
+
+```{r}
+final_predictions$mean %>% autoplot() + 
+  ggtitle('Final Forecast')
+```
+
+# Var02 & Var03 Export Data to CSV
+
+```{r}
+df1 <- as.data.frame(final_predictions$mean)
+names(df1) <- 'Var03'
+
+final_df <- cbind(df,df1)
+final_df <- cbind(test$SeriesInd, final_df) %>% 
+  rename('SeriesInd' = `test$SeriesInd`)
+```
+
+```{r}
+write_csv(final_df, "S05 predictions.csv" )
+```
+
+
+
 
 
 
