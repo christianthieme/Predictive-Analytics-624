@@ -103,8 +103,14 @@ train %>%
   ggplot() + 
   aes(x = new_date, y = Var02, color = year) + 
   geom_line() +
-  labs(title = "Seasonal Analysis of Exxon Stock Volume", x = '') + 
-  scale_x_date(date_labels = '%b')
+  labs(title = "Seasonal Analysis of Var02 from Group S05", x = '') + 
+  scale_x_date(date_labels = '%b') +
+theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.45),
+          panel.grid.minor.x = element_blank(),
+          axis.ticks.x = element_line(color = "grey")
+  )
 ```
 
 
@@ -424,7 +430,7 @@ fit <- auto.arima(ts_train, D=1)
 summary(fit)
 ```
 
-Here we see our MAPE is ~24.97%, which isn't bad. On average, about 25% of our forecast is incorrect. We'll now build our forecast. 
+Here we see our MAPE is ~77.95%, which is pretty bad bad. On average, about 78% of our forecast is incorrect. When talking about stock price, I think we may expect to see something like this because stock price really is impossible to forecasts, especially without using exogenous variables. We'll now build our forecast. 
 
 ```{r}
 prediction <- fit %>% forecast(h = length(ts_test))
@@ -446,14 +452,14 @@ ts_test %>%
   labs(title = "Actuals vs Predictions", y = "Volume")
 ```
 
-We can see that while our forecast captures much of the variability within the data, it is not an incredibly accurate forecast. With stock data, we expect that our forecast will be less than desirable since movements in stock and volume are mostly a random walk. 
+We can see that while our forecast captures much of the variability within the data, it is incredibly inaccurate. With stock data, we expect that our forecast will be less than desirable since movements in stock price are a random walk. 
 
 
 ```{r}
 forecast::accuracy(as.numeric((prediction$mean)),as.numeric((ts_test)))
 ```
 
-Looking at our MAPE on the test set, we see that on average, 42% of our forecast is is incorrect. Now we'll look at the residuals. 
+Looking at our MAPE on the test set, we see that on average, 18% of our forecast is is incorrect. Now we'll look at the residuals. 
 
 
 ```{r}
@@ -461,7 +467,7 @@ fit %>% residuals () %>%
   ggtsdisplay()
 ```
 
-While the residuals do look like white noise, we see in our ACF plot that we have many spikes that cross the critical boundary. This is concerning because it means that our confidence interval calculations won't be reliable. As our main focus in this exercise is to produce a forecast, we'll continue with producing a forecast since these checks won't affect the reliability of the forecasted values. 
+While the residuals do look like white noise, we see in our ACF & PACF plot that we have many spikes that cross the critical boundary. This is concerning because it means that our confidence interval calculations won't be reliable. As our main focus in this exercise is to produce a forecast, we'll continue with producing a forecast since these checks won't affect the reliability of the forecasted values. 
 
 # Var03 Final Test
 
