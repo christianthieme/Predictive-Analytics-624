@@ -1,0 +1,166 @@
+---
+title: "Regression and Its Cousins"
+author: "Group 4 - Subhalaxmi Rout, Kenan Sooklall, Devin Teran, Christian Thieme, Leo Yi"
+date: "6/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(mice)
+library(caret)
+library(tidymodels)
+library(broom)
+```
+
+## Homework 4: Applied Predictive Modeling
+
+#### 6.3
+
+A chemical manufacturing process for a pharmaceutical product was discussed in Sect. 1.4. In this problem, the objective is to understand the relationship between biological measurements of the raw materials (predictors), measurements of the manufacturing process (predictors), and the response of product yield. Biological predictors cannot be changed but can be used to assess the quality of the raw material before processing. On the other hand, manufacturing process predictors can be changed in the manufacturing process. Improving product yield by 1% will boost revenue by approximately one hundred thousand dollars per batch.
+
+**$(a)$ Start `R` and use these commands to load the data:**
+
+```{r message=FALSE, warning=FALSE}
+library(AppliedPredictiveModeling)
+data("ChemicalManufacturingProcess")
+```
+
+
+```{r}
+glimpse(ChemicalManufacturingProcess)
+```
+**$(b)$ A small percentage of cells in the predictor set contain missing values. Use an imputation function to fill in these missing values.**
+
+Let's first get a feel for how many missing values there are and if they are associated with a particular feature: 
+
+```{r fig.width = 12, fig.height=6}
+visdat::vis_miss(ChemicalManufacturingProcess, sort_miss = TRUE)
+```
+
+Looking at the visual above we can see that there are missing values (~1% total) and that there are only 3 features with more than 5% of their values missing. A large portion of the missing data seem to have a pattern in that certain rows are missing the same 10-12 features. Having investigated the columns it looks like the range is really quite small for the columns that are missing data. This means that we should be pretty safe with most imputation methods. It turns out that one of the most accurate ways to fill in missing values is to use predictive mean matching. We can utilize this method from the `mice` library. 
+
+```{r message=FALSE, warning=FALSE}
+ChemicalManufacturingProcess <- mice(data = ChemicalManufacturingProcess, m = 1, method = "pmm", seed = 123)
+ChemicalManufacturingProcess <- mice::complete(ChemicalManufacturingProcess, 1)
+```
+
+Let's double check we have no missing values in our data: 
+
+```{r}
+ChemicalManufacturingProcess[colSums(is.na(ChemicalManufacturingProcess)) > 0,]
+```
+
+**$(c)$ Split the data into a training and a test set, pre-process the data, and tune a model of your choice from this chapter. What is the optimal value of the performance metric?** 
+
+```{r}
+# transformations <- preProcess(ChemicalManufacturingProcess, method = c('YeoJohnson', 'center', 'scale', 'pca'))
+# transformations
+```
+
+
+```{r}
+# transformed <- predict(transformations, ChemicalManufacturingProcess)
+# head(transformed)
+```
+
+
+```{r}
+set.seed(123)
+
+train_test_split <- initial_split(ChemicalManufacturingProcess, prop = 0.80)
+
+train <- training(train_test_split)
+
+test <- testing(train_test_split)
+```
+
+```{r}
+train
+```
+
+```{r}
+enetGrid <- expand.grid(.lambda = c(0,0.01, 0.1), 
+                        .fraction = seq(.05, 1, length = 20))
+
+ctrl <- trainControl(method = 'cv', number = 10)
+
+enet_tune <- train(Yield ~ ., 
+                  data = train, 
+                  method = 'enet', 
+                  tuneGrid = enetGrid, 
+                  trControl = ctrl, 
+                  preProc = c('YeoJohnson', 'center', 'scale', 'pca'))
+```
+
+
+```{r}
+enet_tune
+```
+
+```{r}
+getTrainPerf(enet_tune)
+```
+
+
+Per the output above, the optimal parameters used in the model were fraction = 0.75 and lambda = 0.01. They resulted in an RMSE of 1.342689 and an $R^2$ of 0.5683051.
+
+
+We can plot the performance metrics using the `plot` function: 
+
+```{r}
+plot(enet_tune)
+```
+
+**$(d)$ Predict the response for the test set. What is the value of the performance metric and how does it compare with the resampled performance metric on the training set?**
+
+```{r}
+test$pred <- predict(enet_tune, test)
+
+results <- test %>%
+  select(obs = Yield, pred = pred)
+
+defaultSummary(results)
+```
+Our RMSE is slightly higher and we see that the $R^2$ value is quite a bit lower than the model run on the training dataset. 
+
+
+**$(e)$ Which predictors are most important in the model you have trained? Do either the biological or process predictors dominate the list?**
+
+```{r}
+var_imp <- varImp(enet_tune, scale = F)
+
+plot(var_imp, top = 10)
+```
+
+Base on our variable importance analysis to the model, it appears that a mix of both manufacturing and biological processes are important to the model. 
+
+**$(f)$ Explore the relationships between each of the top predictors and the response. How could this information be helpful in improving yield in the future runs of the manufacturing process?**
+
+```{r}
+var_imp_df <- var_imp$importance %>%
+                data.frame() %>% 
+                arrange(desc(Overall)) %>% 
+                top_n(10, wt = Overall)
+
+var_imp_df 
+```
+
+
+```{r fig.height=8, fig.width=12}
+var_imp_df$var <- rownames(var_imp_df)
+
+var_top_10 <- ChemicalManufacturingProcess[,names(ChemicalManufacturingProcess) %in% c(var_imp_df$var, 'Yield')]# %>%
+ # bind_cols(Yield = ChemicalManufacturingProcess$Yield)
+
+
+var_top_10 %>%
+  gather(variable, value, -Yield) %>%
+  ggplot(aes(x = value, y = Yield)) +
+  geom_point() +
+  facet_wrap(~variable, scales = 'free_x') +
+  labs(x = element_blank())
+```
+
+Looking at the results above, we can see that they are strongly correlated. For Biological Material 02, 05, 06, and 12 as well as manufacturing process 09, and 32, the more we increase these values, the greater our yield will be. Conversely, for those not mentioned, these variables have negatively correlated relationships, meaning the more we can minimize these values, the higher our yield will be. 
